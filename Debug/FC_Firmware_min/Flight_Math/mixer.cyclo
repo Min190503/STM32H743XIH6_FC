@@ -1,0 +1,3 @@
+../FC_Firmware_min/Flight_Math/mixer.c:12:14:constrain_float	3
+../FC_Firmware_min/Flight_Math/mixer.c:19:6:Mixer_Init	1
+../FC_Firmware_min/Flight_Math/mixer.c:36:15:Mixer_Compute	3

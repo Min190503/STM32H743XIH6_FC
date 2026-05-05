@@ -1,0 +1,4 @@
+../Core/Src/freertos.c:101:6:MX_FREERTOS_Init	8	static
+../Core/Src/freertos.c:149:6:StartTask_System	16	static
+../Core/Src/freertos.c:169:6:StartTask_FlightControl	56	static
+../Core/Src/freertos.c:242:6:StartTask_RC	40	static

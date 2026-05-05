@@ -1,0 +1,273 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * File Name          : freertos.c
+  * Description        : Code for freertos applications
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Includes ------------------------------------------------------------------*/
+#include "FreeRTOS.h"
+#include "task.h"
+#include "main.h"
+#include "cmsis_os.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include "usbd_cdc_if.h"
+#include "string.h"
+#include "stdio.h"
+#include "icm42688.h"
+#include "madgwick_filter.h"
+#include "drv_motor.h"
+#include "mixer.h"
+#include "flight_state.h"
+#include "drv_rc.h"
+
+extern SPI_HandleTypeDef hspi4;
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN Variables */
+ICM42688_Data_t imu_data;
+Madgwick_t mw_filter;
+/* USER CODE END Variables */
+/* Definitions for Task_System */
+osThreadId_t Task_SystemHandle;
+const osThreadAttr_t Task_System_attributes = {
+  .name = "Task_System",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for Task_FlightCont */
+osThreadId_t Task_FlightContHandle;
+const osThreadAttr_t Task_FlightCont_attributes = {
+  .name = "Task_FlightCont",
+  .stack_size = 1024 * 4,
+  .priority = (osPriority_t) osPriorityRealtime,
+};
+/* Definitions for Task_RC_Update */
+osThreadId_t Task_RC_UpdateHandle;
+const osThreadAttr_t Task_RC_Update_attributes = {
+  .name = "Task_RC_Update",
+  .stack_size = 512 * 4,
+  .priority = (osPriority_t) osPriorityAboveNormal,
+};
+
+/* Private function prototypes -----------------------------------------------*/
+/* USER CODE BEGIN FunctionPrototypes */
+
+/* USER CODE END FunctionPrototypes */
+
+void StartTask_System(void *argument);
+void StartTask_FlightControl(void *argument);
+void StartTask_RC(void *argument);
+
+extern void MX_USB_DEVICE_Init(void);
+void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
+
+/**
+  * @brief  FreeRTOS initialization
+  * @param  None
+  * @retval None
+  */
+void MX_FREERTOS_Init(void) {
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of Task_System */
+  Task_SystemHandle = osThreadNew(StartTask_System, NULL, &Task_System_attributes);
+
+  /* creation of Task_FlightCont */
+  Task_FlightContHandle = osThreadNew(StartTask_FlightControl, NULL, &Task_FlightCont_attributes);
+
+  /* creation of Task_RC_Update */
+  Task_RC_UpdateHandle = osThreadNew(StartTask_RC, NULL, &Task_RC_Update_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+}
+
+/* USER CODE BEGIN Header_StartTask_System */
+/**
+  * @brief  Function implementing the Task_System thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartTask_System */
+void StartTask_System(void *argument)
+{
+  /* init code for USB_DEVICE */
+  MX_USB_DEVICE_Init();
+  /* USER CODE BEGIN StartTask_System */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTask_System */
+}
+
+/* USER CODE BEGIN Header_StartTask_FlightControl */
+/**
+* @brief Function implementing the Task_FlightCont thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask_FlightControl */
+void StartTask_FlightControl(void *argument)
+{
+  /* USER CODE BEGIN StartTask_FlightControl */
+	osDelay(500);
+
+	//Init IMU
+	ICM42688_Init(&hspi4);
+	ICM42688_Calibrate();
+
+	Madgwick_Init(&mw_filter, 0.1f);
+
+	//Init Motor & Flight System;
+	Motor_Init();
+	FlightState_Init();
+	Mixer_Init();
+	flight_status.is_calibrated = 1;
+
+	uint32_t last_tick = osKernelGetTickCount();
+	const uint32_t loop_period = 1;
+	float dt = 0.001f;
+
+	  /* Infinite loop */
+		for(;;){
+			 ICM42688_Read_All(&imu_data);
+			 Madgwick_Update(
+					 &mw_filter,
+					 imu_data.gyro_x, imu_data.gyro_y, imu_data.gyro_z,
+					 imu_data.acc_x, imu_data.acc_y, imu_data.acc_z,
+					 dt);
+			 if(flight_status.state == STATE_ARMED){
+				 float roll_target 	= ((float)rc_data.roll 	- 1500.0f) / 500.0f * 45.0f;
+				 float pitch_target = ((float)rc_data.pitch - 1500.0f) / 500.0f * 45.0f;
+				 float yaw_target 	= ((float)rc_data.yaw 	- 1500.0f) / 500.0f * 180.0f;
+
+				 float t = (float)(rc_data.throttle - 1000) / 1000.0f;
+				 if(t < 0.0f) t = 0.0f;
+				 if(t > 1.0f) t = 1.0f;
+				 uint16_t throttle_final = (uint16_t)(t * 1000.0f);
+				 if(rc_data.throttle < 1010) throttle_final = 0;
+				 else if(throttle_final < 60) throttle_final = 60;
+
+				 MotorOutput_t motors = Mixer_Compute(
+						 	 	 throttle_final,
+								 mw_filter.roll, mw_filter.pitch,
+								 imu_data.gyro_x, imu_data.gyro_y, imu_data.gyro_z,
+								 roll_target, pitch_target, yaw_target, dt);
+
+				 Motor_SetDShot(MOTOR_1, 48 + (motors.m1 * 1999) / 1000);
+				 Motor_SetDShot(MOTOR_2, 48 + (motors.m2 * 1999) / 1000);
+				 Motor_SetDShot(MOTOR_3, 48 + (motors.m3 * 1999) / 1000);
+				 Motor_SetDShot(MOTOR_4, 48 + (motors.m4 * 1999) / 1000);
+			 } else {
+				 Motor_Stop();
+				 PID_Reset(&pid_roll);
+				 PID_Reset(&pid_pitch);
+				 PID_Reset(&pid_yaw);
+
+				 PID_Reset(&pid_angle_roll);
+				 PID_Reset(&pid_angle_pitch);
+			 }
+			 last_tick += loop_period;
+			 osDelayUntil(last_tick);
+		}
+  /* USER CODE END StartTask_FlightControl */
+}
+
+/* USER CODE BEGIN Header_StartTask_RC */
+/**
+* @brief Function implementing the Task_RC_Update thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask_RC */
+void StartTask_RC(void *argument)
+{
+  /* USER CODE BEGIN StartTask_RC */
+	DRV_RC_Init();
+
+	 static char rc_buf[128];
+	 static int rc_print = 0;
+  /* Infinite loop */
+  for(;;)
+  {
+	  DRV_RC_ParseData();
+	  DRV_RC_IsHealthy();
+	  FlightState_Update();
+
+	  // DEBUG: in ra mỗi 500ms
+	      if(++rc_print >= 5) {
+	          snprintf(rc_buf, sizeof(rc_buf),
+	              "Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f\r\n",
+	              mw_filter.roll, mw_filter.pitch, mw_filter.yaw);
+	          CDC_Transmit_FS((uint8_t*)rc_buf, strlen(rc_buf));
+	          rc_print = 0;
+  }
+  osDelay(20);
+  }
+  /* USER CODE END StartTask_RC */
+}
+
+/* Private application code --------------------------------------------------*/
+/* USER CODE BEGIN Application */
+
+/* USER CODE END Application */
+

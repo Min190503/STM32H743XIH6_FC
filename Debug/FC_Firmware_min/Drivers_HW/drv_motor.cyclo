@@ -1,0 +1,6 @@
+../FC_Firmware_min/Drivers_HW/drv_motor.c:17:13:encode_dshot	3
+../FC_Firmware_min/Drivers_HW/drv_motor.c:35:13:send_dshot_dma	3
+../FC_Firmware_min/Drivers_HW/drv_motor.c:42:6:Motor_Init	2
+../FC_Firmware_min/Drivers_HW/drv_motor.c:53:6:Motor_SetDShot	6
+../FC_Firmware_min/Drivers_HW/drv_motor.c:78:6:Motor_SetAll	1
+../FC_Firmware_min/Drivers_HW/drv_motor.c:85:6:Motor_Stop	1
