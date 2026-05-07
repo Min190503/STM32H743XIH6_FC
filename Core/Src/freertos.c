@@ -34,6 +34,7 @@
 #include "mixer.h"
 #include "flight_state.h"
 #include "drv_rc.h"
+#include "mavlink_rx.h"
 
 extern SPI_HandleTypeDef hspi4;
 
@@ -63,7 +64,7 @@ Madgwick_t mw_filter;
 osThreadId_t Task_SystemHandle;
 const osThreadAttr_t Task_System_attributes = {
   .name = "Task_System",
-  .stack_size = 256 * 4,
+  .stack_size = 1024 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for Task_FlightCont */
@@ -151,9 +152,11 @@ void StartTask_System(void *argument)
   /* init code for USB_DEVICE */
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN StartTask_System */
+  MAVLink_Init();
   /* Infinite loop */
   for(;;)
   {
+	  MAVLink_Task_Process();
     osDelay(1);
   }
   /* USER CODE END StartTask_System */
@@ -254,13 +257,19 @@ void StartTask_RC(void *argument)
 	  FlightState_Update();
 
 	  // DEBUG: in ra mỗi 500ms
-	      if(++rc_print >= 5) {
-	          snprintf(rc_buf, sizeof(rc_buf),
-	              "Roll: %5.1f | Pitch: %5.1f | Yaw: %5.1f\r\n",
-	              mw_filter.roll, mw_filter.pitch, mw_filter.yaw);
-	          CDC_Transmit_FS((uint8_t*)rc_buf, strlen(rc_buf));
-	          rc_print = 0;
-  }
+	  if(++rc_print >= 25) { // Sửa số 5 thành 25 để nó in nhanh hơn (500ms) vì vòng lặp chạy 20ms
+	  	      snprintf(rc_buf, sizeof(rc_buf),
+	  	          "R: %5.1f | P: %5.1f | dX: %d | dY: %d | Alt: %.2f | Sq: %d\r\n",
+	  	          mw_filter.roll,
+	                mw_filter.pitch,
+	                optical_flow_data.flow_x,
+	                optical_flow_data.flow_y,
+	                optical_flow_data.altitude_m,
+	                optical_flow_data.quality);
+
+	  	      CDC_Transmit_FS((uint8_t*)rc_buf, strlen(rc_buf));
+	  	      rc_print = 0;
+	        }
   osDelay(20);
   }
   /* USER CODE END StartTask_RC */

@@ -37,7 +37,7 @@ typedef struct {
 } IMU_Calib_t;
 extern IMU_Calib_t imu_calib;
 
-uint8_t ICM42688_Init(SPI_HandleTypeDef *hspi);
+//uint8_t ICM42688_Init(SPI_HandleTypeDef *hspi);
 void 	ICM42688_Read_All(ICM42688_Data_t *data);
 void	ICM42688_Calibrate(void);
 

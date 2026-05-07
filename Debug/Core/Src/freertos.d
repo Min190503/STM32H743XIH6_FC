@@ -63,7 +63,8 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Flight_Math/mixer.h \
  /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Flight_Math/pid.h \
  /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/System_App/flight_state.h \
- /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Drivers_HW/drv_rc.h
+ /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Drivers_HW/drv_rc.h \
+ /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Flight_Math/mavlink_rx.h
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 ../Core/Inc/FreeRTOSConfig.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
@@ -132,3 +133,4 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Flight_Math/pid.h:
 /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/System_App/flight_state.h:
 /home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Drivers_HW/drv_rc.h:
+/home/min/FC_mamab_4_H743_V2/FC_H743XIH6/FC_Firmware_min/Flight_Math/mavlink_rx.h:
